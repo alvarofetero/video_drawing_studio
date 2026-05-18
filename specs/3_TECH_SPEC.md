@@ -15,6 +15,7 @@ The UI must perfectly stack the Canvas over the Video element.
 +-----------------------------------+
 |        Video Layer (Bottom)       |  <- Displays MP4/WebM stream
 +-----------------------------------+
+```
 
 Critical Implementation Rules:
 The Canvas aspect ratio must match the video's intrinsic aspect ratio dynamically to prevent drawing drift.
@@ -39,3 +40,13 @@ JSON
   "stroke": "#FF0000"
 }
 .
+
+## 4. Testing Strategy (TDD)
+*   **Testing Framework:** Vitest (fast, native Vite integration).
+*   **Component & DOM Testing:** React Testing Library + Happy DOM / JSDOM.
+*   **Canvas Mocking:** Since HTML5 canvas operations can be tricky in a headless test environment, use `jest-canvas-mock` or Vitest equivalent to mock canvas context methods (`getContext`, `lineTo`, etc.).
+*   **TDD Workflow Rule:** For every feature or component block:
+    1. Write a unit/integration test that specifies the expected behavior (e.g., "should play video when play button is clicked").
+    2. Run the test to ensure it **FAILS**.
+    3. Write the minimal implementation code to make the test **PASS**.
+    4. Refactor while keeping the test **GREEN**.
