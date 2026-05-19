@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
-function VideoPlayer({ onTimeUpdate, onDurationChange, isRecording }, ref) {
+function VideoPlayer({ onTimeUpdate, onDurationChange }, ref) {
   const videoRef = useRef(null)
   const inputRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -15,9 +15,7 @@ function VideoPlayer({ onTimeUpdate, onDurationChange, isRecording }, ref) {
       if (videoRef.current) {
         videoRef.current.currentTime = seconds
       }
-    },
-    // Exponemos la referencia del elemento de video nativo para que el Canvas pueda leer sus fotogramas
-    getVideoElement: () => videoRef.current
+    }
   }))
 
   const handleFileChange = (event) => {
@@ -49,10 +47,9 @@ function VideoPlayer({ onTimeUpdate, onDurationChange, isRecording }, ref) {
         ref={videoRef}
         width="100%"
         height="100%"
-        // Mantenemos el video visible pero le bajamos la prioridad de capa para que el Canvas se fusione arriba
-        className="h-full w-full object-cover"
+        // Escondemos el video de la vista directa; CanvasOverlay se encarga de estamparlo arriba automáticamente
+        className="h-full w-full object-cover opacity-0 pointer-events-none"
         src={videoSrc}
-        aria-label="analysis video"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onEnded={() => setIsPlaying(false)}
@@ -61,8 +58,9 @@ function VideoPlayer({ onTimeUpdate, onDurationChange, isRecording }, ref) {
       />
       <input ref={inputRef} type="file" accept="video/*" className="sr-only" onChange={handleFileChange} />
       
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4 z-20">
-        <div className="pointer-events-auto inline-flex items-center gap-3 rounded-3xl bg-black/70 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-sm">
+      {/* Botones de control inferiores */}
+      <div className="absolute inset-x-0 bottom-4 flex justify-center px-4 z-20">
+        <div className="inline-flex items-center gap-3 rounded-3xl bg-black/70 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-sm">
           <button type="button" onClick={handleLoadVideo} className="rounded-full bg-white/10 px-3 py-2 hover:bg-white/20">
             Load Video
           </button>

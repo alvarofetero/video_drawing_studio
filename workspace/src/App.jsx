@@ -1,12 +1,12 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import VideoPlayer from './components/VideoPlayer'
 import CanvasOverlay from './components/CanvasOverlay'
 
 const tools = [
-  { id: 'select', label: 'Select (Interact)' },
-  { id: 'rectangle', label: 'Rectangle' },
-  { id: 'circle', label: 'Circle' },
-  { id: 'cylinder', label: 'Tactical Cylinder' }
+  { id: 'select', label: 'Select (Move & Shape Perspective)' },
+  { id: 'circle', label: 'Tactical Oval / Circle' },
+  { id: 'cylinder', label: 'Tactical Cylinder' },
+  { id: 'rectangle', label: 'Rectangle' }
 ]
 
 export default function App() {
@@ -17,19 +17,50 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
   
+  // Estados para gestionar la congelación de 7 segundos
+  const [frozenTimestamps, setFrozenTimestamps] = useState(new Set())
+  const isCurrentlyFrozenRef = useRef(false)
   const playerRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const recordedChunksRef = useRef([])
 
-  const handleShapeCreate = (shapeData) => {
-    setShapes((current) => [
-      ...current,
-      {
-        id: `shape-${current.length + 1}`,
-        tool: activeTool,
-        ...shapeData
+  // Cada vez que cambia el segundo del video en reproducción normal, validamos si hay marcas
+  const handleTimeUpdate = (time) => {
+    setCurrentTime(time)
+    
+    // Validamos si hay alguna figura creada en este segundo exacto
+    const hasShapeInThisFrame = shapes.some(s => Math.abs(s.timestamp - time) < 0.12)
+    
+    // Si hay una figura, y este segundo no ha sido congelado todavía en esta pasada...
+    if (hasShapeInThisFrame && !frozenTimestamps.has(Math.floor(time)) && !isCurrentlyFrozenRef.current) {
+      const videoElement = document.querySelector('video')
+      if (videoElement && !videoElement.paused) {
+        isCurrentlyFrozenRef.current = true
+        videoElement.pause() // Detiene la marcha nativa del video
+        
+        // Registramos el segundo para no volver a congelar infinitamente en bucle
+        setFrozenTimestamps(prev => {
+          const next = new Set(prev)
+          next.add(Math.floor(time))
+          return next
+        })
+
+        // Temporizador de 7 segundos exactos en pantalla
+        setTimeout(() => {
+          isCurrentlyFrozenRef.current = false
+          // Si no empezamos a grabar otra cosa o el usuario cambió de opinión, reanuda
+          videoElement.play().catch(() => {})
+        }, 7000)
       }
-    ])
+    }
+  }
+
+  // Al mover la barra de tiempo manual, limpiamos los bloqueos de congelamiento pasados
+  const handleSeekChange = (e) => {
+    const targetTime = parseFloat(e.target.value)
+    setFrozenTimestamps(new Set()) // Resetea memoria para que vuelva a congelar al pasar por ahí
+    isCurrentlyFrozenRef.current = false
+    playerRef.current?.seekTo?.(targetTime)
   }
 
   const handleLoadVideo = () => {
@@ -42,61 +73,30 @@ export default function App() {
     return `${mins}:${secs}`
   }
 
-  const handleSeekChange = (e) => {
-    const targetTime = parseFloat(e.target.value)
-    playerRef.current?.seekTo?.(targetTime)
-  }
-
-  const skipTime = (amount) => {
-    if (playerRef.current?.seekTo) {
-      const nextTime = Math.max(0, Math.min(duration, currentTime + amount))
-      playerRef.current.seekTo(nextTime)
-    }
-  }
-
-  // --- SISTEMA DE EXPORTACIÓN DE VIDEO ---
+  // --- EXPORTACIÓN DE VIDEO INTEGRANDO LOS 7s DE CONGELACIÓN ---
   const handleToggleRecord = () => {
     if (isRecording) {
-      // Detener grabación
       mediaRecorderRef.current?.stop()
       setIsRecording(false)
     } else {
-      // Iniciar grabación del espacio de trabajo combinando video + dibujos
       recordedChunksRef.current = []
-      
-      // Buscamos el elemento canvas del DOM para extraer su stream de video
+      setFrozenTimestamps(new Set()) // Permitir congelar todo en la grabación final limpia
       const canvas = document.querySelector('canvas')
-      if (!canvas) return alert('No se encontró el lienzo de dibujo.')
+      if (!canvas) return alert('No canvas workspace found.')
 
-      // Capturamos el stream a 30 FPS
       const stream = canvas.captureStream(30)
-      
-      // Intentamos capturar el audio del video original si existe para no perderlo
-      const videoElement = document.querySelector('video')
-      if (videoElement && videoElement.captureStream) {
-        const videoStream = videoElement.captureStream()
-        const audioTracks = videoStream.getAudioTracks()
-        if (audioTracks.length > 0) {
-          stream.addTrack(audioTracks[0])
-        }
-      }
-
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' })
       
       recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          recordedChunksRef.current.push(e.data)
-        }
+        if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data)
       }
 
       recorder.onstop = () => {
         const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' })
         const url = URL.createObjectURL(blob)
-        
-        // Crear un enlace invisible para descargar el archivo modificado automáticamente
         const a = document.createElement('a')
         a.href = url
-        a.download = 'analisis_tactico.webm'
+        a.download = 'analisis_estudio_tactico.webm'
         a.click()
         URL.revokeObjectURL(url)
       }
@@ -105,7 +105,7 @@ export default function App() {
       recorder.start()
       setIsRecording(true)
       
-      // Forzamos al video a reproducirse al empezar a grabar
+      const videoElement = document.querySelector('video')
       videoElement?.play().catch(() => {})
     }
   }
@@ -115,8 +115,8 @@ export default function App() {
       <header className="border-b border-slate-200 bg-slate-950 text-white">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-4 px-4 py-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Football Video Analysis</p>
-            <h1 className="text-2xl font-semibold">Video Drawing Studio</h1>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Tactical Video Analysis</p>
+            <h1 className="text-2xl font-semibold">Video Drawing Studio Pro</h1>
           </div>
           <div className="flex gap-3">
             <button
@@ -126,22 +126,18 @@ export default function App() {
               }`}
               onClick={handleToggleRecord}
             >
-              {isRecording ? 'Stop & Download Analysis' : 'Start Export Recording'}
+              {isRecording ? 'Stop & Save Video' : 'Export Video with 7s Freezes'}
             </button>
-            <button
-              type="button"
-              className="rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-400"
-              onClick={handleLoadVideo}
-            >
+            <button type="button" className="rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-sky-400" onClick={handleLoadVideo}>
               Load Video
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1280px] gap-6 px-4 py-6 lg:grid-cols-[240px_1fr]">
+      <main className="mx-auto grid max-w-[1280px] gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
         <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 text-xs uppercase tracking-[0.3em] text-slate-400">Drawing Toolbar</div>
+          <div className="mb-4 text-xs uppercase tracking-[0.3em] text-slate-400">Studio Tools</div>
           <div className="grid gap-3">
             {tools.map((tool) => (
               <button
@@ -149,36 +145,39 @@ export default function App() {
                 type="button"
                 onClick={() => setActiveTool(tool.id)}
                 className={`rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
-                  activeTool === tool.id
-                    ? 'bg-slate-950 text-white shadow'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  activeTool === tool.id ? 'bg-slate-950 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
                 {tool.label}
               </button>
             ))}
           </div>
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-xs text-slate-500 space-y-2">
+            <p className="font-semibold text-slate-700">Studio Guide:</p>
+            <p>1. Pause the video and pick any shape tool to draw.</p>
+            <p>2. Use <b>Select</b> mode to drag drawings or adjust oval perspective via handles.</p>
+            <p>3. Hit Play: the final video will freeze for 7 seconds automatically on your analysis frame!</p>
+          </div>
         </aside>
 
         <section className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="relative mx-auto overflow-hidden rounded-[32px] border border-slate-200 bg-black" style={{ width: videoSize.width, height: videoSize.height }}>
-              <div role="region" aria-label="Video workspace" className="relative h-full w-full">
+              <div className="relative h-full w-full">
                 <VideoPlayer 
                   ref={playerRef} 
                   width={videoSize.width} 
                   height={videoSize.height} 
-                  onTimeUpdate={setCurrentTime}
+                  onTimeUpdate={handleTimeUpdate}
                   onDurationChange={setDuration}
-                  isRecording={isRecording} // Pasamos la bandera al reproductor
                 />
                 <CanvasOverlay
                   videoWidth={videoSize.width}
                   videoHeight={videoSize.height}
                   activeTool={activeTool}
                   shapes={shapes}
-                  setShapes={setShapes} // Pasamos la función mutadora para limpiar el tiempo
-                  onShapeCreate={handleShapeCreate}
+                  setShapes={setShapes}
+                  currentTime={currentTime}
                 />
               </div>
             </div>
@@ -186,14 +185,8 @@ export default function App() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={() => skipTime(-5)} className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Skip -5s</button>
-                <button type="button" onClick={() => skipTime(5)} className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Skip +5s</button>
-              </div>
-              <div className="flex-1">
-                <input id="seek" type="range" min="0" max={duration || 100} value={currentTime} onChange={handleSeekChange} className="h-2 w-full appearance-none rounded-full bg-slate-200 accent-sky-500 cursor-pointer" />
-              </div>
-              <div className="text-sm font-medium text-slate-700 min-w-[90px] text-right">
+              <input id="seek" type="range" min="0" max={duration || 100} step="0.01" value={currentTime} onChange={handleSeekChange} className="h-2 flex-1 appearance-none rounded-full bg-slate-200 accent-sky-500 cursor-pointer" />
+              <div className="text-sm font-semibold text-slate-700 min-w-[90px] text-right">
                 {formatTime(currentTime)} / {formatTime(duration)}
               </div>
             </div>
