@@ -22,6 +22,8 @@ You must ask the user for permission before moving from one milestone to the nex
 *   **Milestone 4:** Advanced Shapes & Text (Cylinder creation, Textbox tool).
 *   **Milestone 5:** Manipulation Controls (Enabling selection, moving, scaling, and rotating of shapes to fit pitch perspective).
 *   **Milestone 6:** Polish & UI Styling (Refining the Tailwind layout).
+*   **Milestone 7:** Add a progress bar or a loading message when the video is loading, until finished loaded.
+*   **Milestone 8:** Make sure the video player buttons work as expected (Play, Pause, etc.)
 
 
 ## Modified TDD Execution Plan / Milestones

@@ -3,7 +3,7 @@ import VideoPlayer from './components/VideoPlayer'
 import CanvasOverlay from './components/CanvasOverlay'
 
 const tools = [
-  { id: 'select', label: 'Select' },
+  { id: 'select', label: 'Select (Interact with Video)' },
   { id: 'rectangle', label: 'Rectangle' },
   { id: 'circle', label: 'Circle' },
   { id: 'arrow', label: 'Arrow' },
@@ -15,6 +15,8 @@ export default function App() {
   const [activeTool, setActiveTool] = useState('select')
   const [shapes, setShapes] = useState([])
   const [videoSize] = useState({ width: 640, height: 480 })
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
   const playerRef = useRef(null)
 
   const handleShapeCreate = (shapeData) => {
@@ -30,6 +32,31 @@ export default function App() {
 
   const handleLoadVideo = () => {
     playerRef.current?.openFilePicker()
+  }
+
+  // Funciones para conectar los controles de la línea de tiempo con el VideoPlayer nativo
+  const formatTime = (timeInSeconds) => {
+    const mins = Math.floor(timeInSeconds / 60).toString().padStart(2, '0')
+    const secs = Math.floor(timeInSeconds % 60).toString().padStart(2, '0')
+    return `${mins}:${secs}`
+  }
+
+  const handleTimeUpdate = (time) => {
+    setCurrentTime(time)
+  }
+
+  const handleSeekChange = (e) => {
+    const targetTime = parseFloat(e.target.value)
+    if (playerRef.current?.seekTo) {
+      playerRef.current.seekTo(targetTime)
+    }
+  }
+
+  const skipTime = (amount) => {
+    if (playerRef.current?.seekTo) {
+      const nextTime = Math.max(0, Math.min(duration, currentTime + amount))
+      playerRef.current.seekTo(nextTime)
+    }
   }
 
   return (
@@ -72,7 +99,11 @@ export default function App() {
           <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             <p className="font-semibold text-slate-900">Active Tool</p>
             <p className="mt-2 capitalize">{activeTool}</p>
-            <p className="mt-4 text-xs text-slate-500">Draw on the canvas to create shapes.</p>
+            <p className="mt-4 text-xs text-slate-500">
+              {activeTool === 'select' 
+                ? 'Click on the video interface controls to play/pause.' 
+                : 'Draw on the canvas to create shapes.'}
+            </p>
           </div>
         </aside>
 
@@ -90,10 +121,18 @@ export default function App() {
 
             <div className="relative mx-auto overflow-hidden rounded-[32px] border border-slate-200 bg-black" style={{ width: videoSize.width, height: videoSize.height }}>
               <div role="region" aria-label="Video workspace" className="relative h-full w-full">
-                <VideoPlayer ref={playerRef} width={videoSize.width} height={videoSize.height} />
+                <VideoPlayer 
+                  ref={playerRef} 
+                  width={videoSize.width} 
+                  height={videoSize.height} 
+                  onTimeUpdate={handleTimeUpdate}
+                  onDurationChange={setDuration}
+                />
                 <CanvasOverlay
                   videoWidth={videoSize.width}
                   videoHeight={videoSize.height}
+                  activeTool={activeTool}
+                  shapes={shapes}
                   onShapeCreate={handleShapeCreate}
                 />
               </div>
@@ -106,17 +145,40 @@ export default function App() {
                 <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Playback</p>
                 <h3 className="text-lg font-semibold text-slate-950">Timeline controls</h3>
               </div>
-              <div className="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700">Video duration: 00:00</div>
+              <div className="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </div>
             </div>
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="flex flex-wrap gap-3">
-                <button type="button" className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Skip Back</button>
-                <button type="button" className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Skip Forward</button>
+                <button 
+                  type="button" 
+                  onClick={() => skipTime(-5)}
+                  className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  Skip -5s
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => skipTime(5)}
+                  className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                >
+                  Skip +5s
+                </button>
               </div>
               <div className="flex-1">
                 <label htmlFor="seek" className="sr-only">Seek time</label>
-                <input id="seek" type="range" min="0" max="100" aria-label="Seek time" className="h-2 w-full appearance-none rounded-full bg-slate-200 accent-sky-500" />
+                <input 
+                  id="seek" 
+                  type="range" 
+                  min="0" 
+                  max={duration || 100} 
+                  value={currentTime}
+                  onChange={handleSeekChange}
+                  aria-label="Seek time" 
+                  className="h-2 w-full appearance-none rounded-full bg-slate-200 accent-sky-500 cursor-pointer" 
+                />
               </div>
             </div>
           </div>
