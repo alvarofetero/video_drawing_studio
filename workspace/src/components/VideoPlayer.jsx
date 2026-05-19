@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
-function VideoPlayer({ onTimeUpdate, onDurationChange }, ref) {
+function VideoPlayer({ onTimeUpdate, onDurationChange, onPlayStateChange }, ref) {
   const videoRef = useRef(null)
   const inputRef = useRef(null)
   const [videoLoaded, setVideoLoaded] = useState(false)
@@ -11,7 +11,9 @@ function VideoPlayer({ onTimeUpdate, onDurationChange }, ref) {
       inputRef.current?.click()
     },
     seekTo: (seconds) => {
-      if (videoRef.current) videoRef.current.currentTime = seconds
+      if (videoRef.current) {
+        videoRef.current.currentTime = seconds
+      }
     }
   }))
 
@@ -20,6 +22,7 @@ function VideoPlayer({ onTimeUpdate, onDurationChange }, ref) {
     if (!file) return
     setVideoSrc(typeof URL?.createObjectURL === 'function' ? URL.createObjectURL(file) : '')
     setVideoLoaded(true)
+    if (onPlayStateChange) onPlayStateChange(false)
   }
 
   return (
@@ -30,6 +33,9 @@ function VideoPlayer({ onTimeUpdate, onDurationChange }, ref) {
         height="100%"
         className="h-full w-full object-cover opacity-0"
         src={videoSrc}
+        onPlay={() => onPlayStateChange?.(true)}
+        onPause={() => onPlayStateChange?.(false)}
+        onEnded={() => onPlayStateChange?.(false)}
         onTimeUpdate={() => onTimeUpdate?.(videoRef.current?.currentTime || 0)}
         onDurationChange={() => onDurationChange?.(videoRef.current?.duration || 0)}
       />

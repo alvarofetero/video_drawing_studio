@@ -10,13 +10,13 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
   const [currentDrawing, setCurrentDrawing] = useState(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  // Renderizado continuo en resolución nativa 1080x720
+  // Renderizado continuo en resolución nativa 1280x720
   useEffect(() => {
     let animationFrameId
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // FIJAMOS LA RESOLUCIÓN INTERNA EN 1080x720 (Garantiza nitidez HD)
+    // FIJAMOS LA RESOLUCIÓN INTERNA EN 1280x720 (Garantiza nitidez HD)
     canvas.width = videoWidth
     canvas.height = videoHeight
     const ctx = canvas.getContext('2d')
@@ -125,7 +125,7 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
     ctx.restore()
   }
 
-  // Traducción matemática de coordenadas físicas de pantalla a la matriz interna 1080x720
+  // Traducción matemática de coordenadas físicas de pantalla a la matriz interna 1280x720
   const getCanvasCoords = (e) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
