@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 
-export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, shapes, setShapes, currentTime, videoPaused }) {
+export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, shapes, setShapes, currentTime }) {
   const canvasRef = useRef(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
@@ -10,12 +10,13 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
   const [currentDrawing, setCurrentDrawing] = useState(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  // Renderizado continuo del Canvas (Fondo de video + Figuras de este segundo específico)
+  // Renderizado continuo en resolución nativa 1080x720
   useEffect(() => {
     let animationFrameId
     const canvas = canvasRef.current
     if (!canvas) return
 
+    // FIJAMOS LA RESOLUCIÓN INTERNA EN 1080x720 (Garantiza nitidez HD)
     canvas.width = videoWidth
     canvas.height = videoHeight
     const ctx = canvas.getContext('2d')
@@ -26,12 +27,12 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
     const drawLoop = () => {
       ctx.clearRect(0, 0, videoWidth, videoHeight)
 
+      // 1. Estampar fotograma del video de fondo
       if (videoElement && videoElement.readyState >= 2) {
         ctx.drawImage(videoElement, 0, 0, videoWidth, videoHeight)
       }
 
-      // Solo filtramos y mostramos las figuras que pertenecen al segundo actual del video
-      // Tolerancia de 0.1s para asegurar el renderizado estable en el cuadro congelado
+      // Filtrar figuras del segundo actual (congelado)
       const currentShapes = shapes.filter(s => Math.abs(s.timestamp - currentTime) < 0.15)
       const allShapesToDraw = [...currentShapes]
       
@@ -43,29 +44,39 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
         ctx.beginPath()
         const isSelected = shape.id === selectedShapeId && activeTool === 'select'
         
-        // Estilos visuales
-        ctx.strokeStyle = isSelected ? '#38bdf8' : '#f43f5e' // Azul si está seleccionado, rosa si no
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#f43f5e'
         ctx.lineWidth = isSelected ? 4 : 3
         ctx.fillStyle = isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(244, 63, 94, 0.2)'
 
         if (shape.tool === 'rectangle') {
-          ctx.rect(shape.startX, shape.startY, shape.endX - shape.startX, shape.endY - shape.startY)
+          // Dibujo del rectángulo basado en sus 4 esquinas para permitir perspectiva real
+          ctx.moveTo(shape.x1, shape.y1)
+          ctx.lineTo(shape.x2, shape.y2)
+          ctx.lineTo(shape.x3, shape.y3)
+          ctx.lineTo(shape.x4, shape.y4)
+          ctx.closePath()
           ctx.fill()
           ctx.stroke()
-          if (isSelected) drawResizeHandles(ctx, shape.endX, shape.endY)
+
+          if (isSelected) {
+            // Dibujar tiradores de redimensión en las 4 esquinas
+            drawResizeHandles(ctx, shape.x1, shape.y1) // Top-Left
+            drawResizeHandles(ctx, shape.x2, shape.y2) // Top-Right
+            drawResizeHandles(ctx, shape.x3, shape.y3) // Bottom-Right
+            drawResizeHandles(ctx, shape.x4, shape.y4) // Bottom-Left
+          }
 
         } else if (shape.tool === 'circle') {
-          // Óvalo ajustable con perspectiva propia
           const radiusX = Math.abs(shape.endX - shape.startX) || 1
-          const radiusY = shape.radiusY || radiusX * 0.4 // Mantiene la perspectiva guardada
+          const radiusY = shape.radiusY || radiusX * 0.4
           
           ctx.ellipse(shape.startX, shape.startY, radiusX, radiusY, 0, 0, 2 * Math.PI)
           ctx.fill()
           ctx.stroke()
+          
           if (isSelected) {
-            // Puntos de control para estirar el ancho (X) y la perspectiva (Y)
-            drawResizeHandles(ctx, shape.startX + radiusX, shape.startY) // Control de ancho
-            drawResizeHandles(ctx, shape.startX, shape.startY + radiusY) // Control de perspectiva/achatamiento
+            drawResizeHandles(ctx, shape.startX + radiusX, shape.startY)
+            drawResizeHandles(ctx, shape.startX, shape.startY + radiusY)
           }
 
         } else if (shape.tool === 'cylinder') {
@@ -109,87 +120,120 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
     ctx.fillStyle = '#ffffff'
     ctx.strokeStyle = '#0284c7'
     ctx.lineWidth = 2
-    ctx.fillRect(x - 5, y - 5, 10, 10)
-    ctx.strokeRect(x - 5, y - 5, 10, 10)
+    ctx.fillRect(x - 6, y - 6, 12, 12)
+    ctx.strokeRect(x - 6, y - 6, 12, 12)
     ctx.restore()
   }
 
-  // Comprobar si se hizo clic cerca de una figura para seleccionarla o moverla
+  // Traducción matemática de coordenadas físicas de pantalla a la matriz interna 1080x720
+  const getCanvasCoords = (e) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    
+    // Al estirar la pantalla con CSS, calculamos la proporción real exacta
+    const x = ((e.clientX - rect.left) / rect.width) * videoWidth
+    const y = ((e.clientY - rect.top) / rect.height) * videoHeight
+    return { x, y }
+  }
+
   const findShapeAtCoords = (x, y) => {
     const activeShapes = shapes.filter(s => Math.abs(s.timestamp - currentTime) < 0.15)
-    // Buscamos de atrás hacia adelante (últimas creadas primero)
+    
     for (let i = activeShapes.length - 1; i >= 0; i--) {
       const shape = activeShapes[i]
-      const radiusX = Math.abs(shape.endX - shape.startX)
-      const radiusY = shape.radiusY || radiusX * 0.4
 
-      // Verificación si es click en el nodo de redimensión de perspectiva (abajo del óvalo)
-      const distToPerspHandle = Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - (shape.startY + radiusY), 2))
-      if (distToPerspHandle < 10) return { shape, type: 'resize-y' }
+      if (shape.tool === 'rectangle') {
+        // Evaluar clic en las 4 esquinas del rectángulo configurables por perspectiva
+        if (Math.sqrt(Math.pow(x - shape.x1, 2) + Math.pow(y - shape.y1, 2)) < 12) return { shape, type: 'r-p1' }
+        if (Math.sqrt(Math.pow(x - shape.x2, 2) + Math.pow(y - shape.y2, 2)) < 12) return { shape, type: 'r-p2' }
+        if (Math.sqrt(Math.pow(x - shape.x3, 2) + Math.pow(y - shape.y3, 2)) < 12) return { shape, type: 'r-p3' }
+        if (Math.sqrt(Math.pow(x - shape.x4, 2) + Math.pow(y - shape.y4, 2)) < 12) return { shape, type: 'r-p4' }
 
-      // Verificación si es click en el nodo de tamaño horizontal (derecha del óvalo)
-      const distToWidthHandle = Math.sqrt(Math.pow(x - (shape.startX + radiusX), 2) + Math.pow(y - shape.startY, 2))
-      if (distToWidthHandle < 10) return { shape, type: 'resize-x' }
+        // Clic en el centro geométrico aproximado para moverlo de sitio
+        const centerX = (shape.x1 + shape.x2 + shape.x3 + shape.x4) / 4
+        const centerY = (shape.y1 + shape.y2 + shape.y3 + shape.y4) / 4
+        if (Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)) < 40) {
+          return { shape, type: 'move' }
+        }
+      } else {
+        // Óvalos y Cilindros
+        const radiusX = Math.abs(shape.endX - shape.startX)
+        const radiusY = shape.radiusY || radiusX * 0.4
 
-      // Verificación si es click dentro o muy cerca de la base de la figura para desplazarla
-      const dx = (x - shape.startX) / radiusX
-      const dy = (y - shape.startY) / radiusY
-      if ((dx * dx + dy * dy) <= 1.2) {
-        return { shape, type: 'move' }
+        if (Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - (shape.startY + radiusY), 2)) < 12) return { shape, type: 'resize-y' }
+        if (Math.sqrt(Math.pow(x - (shape.startX + radiusX), 2) + Math.pow(y - shape.startY, 2)) < 12) return { shape, type: 'resize-x' }
+
+        const dx = (x - shape.startX) / radiusX
+        const dy = (y - shape.startY) / radiusY
+        if ((dx * dx + dy * dy) <= 1.2) return { shape, type: 'move' }
       }
     }
     return null
   }
 
-  // Gestión de Eventos del Mouse globales de Window
   useEffect(() => {
     if (!isDrawing && !isMoving && !isResizing) return
 
     const handleGlobalMouseMove = (e) => {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
+      const { x, y } = getCanvasCoords(e)
 
       if (isDrawing && startCoords) {
-        const radiusX = Math.abs(x - startCoords.x)
-        setCurrentDrawing({
-          tool: activeTool,
-          startX: startCoords.x,
-          startY: startCoords.y,
-          endX: x,
-          endY: y,
-          radiusY: radiusX * 0.4, // Perspectiva por defecto del 40%
-          timestamp: currentTime
-        })
+        if (activeTool === 'rectangle') {
+          setCurrentDrawing({
+            tool: 'rectangle',
+            x1: startCoords.x, y1: startCoords.y, // Top-Left
+            x2: x, y2: startCoords.y,             // Top-Right
+            x3: x, y3: y,                         // Bottom-Right
+            x4: startCoords.x, y4: y,             // Bottom-Left
+            timestamp: currentTime
+          })
+        } else {
+          const radiusX = Math.abs(x - startCoords.x)
+          setCurrentDrawing({
+            tool: activeTool,
+            startX: startCoords.x,
+            startY: startCoords.y,
+            endX: x,
+            endY: y,
+            radiusY: radiusX * 0.4,
+            timestamp: currentTime
+          })
+        }
       } 
       else if (isMoving && selectedShapeId) {
         setShapes(prev => prev.map(s => {
           if (s.id !== selectedShapeId) return s
-          const width = s.endX - s.startX
-          const height = s.endY - s.startY
-          const newStartX = x - dragOffset.x
-          const newStartY = y - dragOffset.y
-          return {
-            ...s,
-            startX: newStartX,
-            startY: newStartY,
-            endX: newStartX + width,
-            endY: newStartY + height
+          if (s.tool === 'rectangle') {
+            const dx = x - dragOffset.x - s.x1
+            const dy = y - dragOffset.y - s.y1
+            return {
+              ...s,
+              x1: s.x1 + dx, y1: s.y1 + dy,
+              x2: s.x2 + dx, y2: s.y2 + dy,
+              x3: s.x3 + dx, y3: s.y3 + dy,
+              x4: s.x4 + dx, y4: s.y4 + dy
+            }
+          } else {
+            const width = s.endX - s.startX
+            const height = s.endY - s.startY
+            const nX = x - dragOffset.x
+            const nY = y - dragOffset.y
+            return { ...s, startX: nX, startY: nY, endX: nX + width, endY: nY + height }
           }
         }))
       } 
       else if (isResizing && selectedShapeId) {
         setShapes(prev => prev.map(s => {
           if (s.id !== selectedShapeId) return s
-          if (isResizing === 'resize-x') {
-            return { ...s, endX: x }
-          } else if (isResizing === 'resize-y') {
-            const currentRadiusX = Math.abs(s.endX - s.startX)
-            const newRadiusY = Math.abs(y - s.startY)
-            return { ...s, radiusY: newRadiusY }
-          }
+          // Redimensión libre de esquinas del rectángulo para adaptar la perspectiva
+          if (isResizing === 'r-p1') return { ...s, x1: x, y1: y }
+          if (isResizing === 'r-p2') return { ...s, x2: x, y2: y }
+          if (isResizing === 'r-p3') return { ...s, x3: x, y3: y }
+          if (isResizing === 'r-p4') return { ...s, x4: x, y4: y }
+          
+          if (isResizing === 'resize-x') return { ...s, endX: x }
+          if (isResizing === 'resize-y') return { ...s, radiusY: Math.abs(y - s.startY) }
           return s
         }))
       }
@@ -214,31 +258,26 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
   }, [isDrawing, isMoving, isResizing, startCoords, activeTool, selectedShapeId, dragOffset, currentDrawing, currentTime, setShapes])
 
   const handleMouseDown = (e) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const { x, y } = getCanvasCoords(e)
 
-    // Forzar pausa en el video nativo si se intenta dibujar algo nuevo
     if (activeTool !== 'select') {
       const videoElement = document.querySelector('video')
-      if (videoElement && !videoElement.paused) {
-        videoElement.pause()
-      }
+      if (videoElement && !videoElement.paused) videoElement.pause()
       setIsDrawing(true)
       setStartCoords({ x, y })
       setSelectedShapeId(null)
       return
     }
 
-    // Modo Selección / Edición / Desplazamiento
     const hit = findShapeAtCoords(x, y)
     if (hit) {
       setSelectedShapeId(hit.shape.id)
       if (hit.type === 'move') {
         setIsMoving(true)
-        setDragOffset({ x: x - hit.shape.startX, y: y - hit.shape.startY })
+        setDragOffset({
+          x: x - (hit.shape.tool === 'rectangle' ? hit.shape.x1 : hit.shape.startX),
+          y: y - (hit.shape.tool === 'rectangle' ? hit.shape.y1 : hit.shape.startY)
+        })
       } else {
         setIsResizing(hit.type)
       }
@@ -250,11 +289,8 @@ export default function CanvasOverlay({ videoWidth, videoHeight, activeTool, sha
   return (
     <canvas
       ref={canvasRef}
-      className="absolute top-0 left-0 w-full h-full shadow-inner"
-      style={{
-        cursor: activeTool === 'select' ? 'default' : 'crosshair',
-        pointerEvents: 'auto', // Siempre activo para poder interactuar en modo select o pausar
-      }}
+      className="absolute top-0 left-0 w-full h-full object-contain"
+      style={{ cursor: activeTool === 'select' ? 'default' : 'crosshair' }}
       onMouseDown={handleMouseDown}
     />
   )
