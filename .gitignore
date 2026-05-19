@@ -1,0 +1,7 @@
+workspace/node_modules/@babel/runtime/*
+workspace/node_modules/.bin/*
+workspace/node_modules/.vite/deps/*
+workspace/node_modules/@adobe/css-tools/dist/*
+workspace/node_modules/@alloc/*
+workspace/node_modules/@babel/*
+workspace/node_modules/*
