@@ -15,7 +15,7 @@ export default function CanvasOverlay({
   const [currentDrawing, setCurrentDrawing] = useState(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  // Ciclo unificado de renderizado de Canvas
+  // Ciclo unificado de renderizado
   useEffect(() => {
     let animationFrameId
     const canvas = canvasRef.current
@@ -84,17 +84,32 @@ export default function CanvasOverlay({
     return () => cancelAnimationFrame(animationFrameId)
   }, [videoWidth, videoHeight, shapes, currentDrawing, currentTime, selectedShapeId, activeTool])
 
+  // CÁLCULO MATEMÁTICO PRECISO COMPATIBLE CON OBJECT-FIT: CONTAIN
   const getCanvasCoords = (e) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
+    
     const rect = canvas.getBoundingClientRect()
+    
+    // Calculamos la escala real manteniendo el aspect ratio
+    const scaleX = rect.width / videoWidth
+    const scaleY = rect.height / videoHeight
+    const scale = Math.min(scaleX, scaleY) 
+    
+    // Obtenemos el tamaño real del canvas visualizado en pantalla
+    const renderedWidth = videoWidth * scale
+    const renderedHeight = videoHeight * scale
+    
+    // Calculamos el espacio negro (letterbox) a los lados o arriba/abajo
+    const offsetX = (rect.width - renderedWidth) / 2
+    const offsetY = (rect.height - renderedHeight) / 2
+    
     return {
-      x: ((e.clientX - rect.left) / rect.width) * videoWidth,
-      y: ((e.clientY - rect.top) / rect.height) * videoHeight
+      x: ((e.clientX - rect.left - offsetX) / renderedWidth) * videoWidth,
+      y: ((e.clientY - rect.top - offsetY) / renderedHeight) * videoHeight
     }
   }
 
-  // DETECTOR DE COLISIONES
   const findShapeAtCoords = (x, y) => {
     const activeShapes = shapes.filter(s => Math.abs(s.timestamp - currentTime) < 0.15)
     
@@ -102,43 +117,36 @@ export default function CanvasOverlay({
       const shape = activeShapes[i]
       const isSelected = shape.id === selectedShapeId
 
-      // 1. RECTÁNGULOS PERSPECTIVOS (Tolerancia de 14px clásica y exacta)
       if (shape.tool === 'rectangle') {
-        if (isSelected && Math.sqrt(Math.pow(x - shape.x1, 2) + Math.pow(y - shape.y1, 2)) < 14) return { shape, type: 'r-p1' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.x2, 2) + Math.pow(y - shape.y2, 2)) < 14) return { shape, type: 'r-p2' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.x3, 2) + Math.pow(y - shape.y3, 2)) < 14) return { shape, type: 'r-p3' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.x4, 2) + Math.pow(y - shape.y4, 2)) < 14) return { shape, type: 'r-p4' }
+        // Tolerancia aumentada a 16px para mayor comodidad en pantallas de alta densidad
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x1, 2) + Math.pow(y - shape.y1, 2)) < 16) return { shape, type: 'r-p1' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x2, 2) + Math.pow(y - shape.y2, 2)) < 16) return { shape, type: 'r-p2' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x3, 2) + Math.pow(y - shape.y3, 2)) < 16) return { shape, type: 'r-p3' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x4, 2) + Math.pow(y - shape.y4, 2)) < 16) return { shape, type: 'r-p4' }
         
-        // Centro dinámico para arrastre completo
         const centerX = (shape.x1 + shape.x2 + shape.x3 + shape.x4) / 4
         const centerY = (shape.y1 + shape.y2 + shape.y3 + shape.y4) / 4
         if (Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)) < 40) return { shape, type: 'move' }
       } 
-      
-      // 2. LÍNEAS Y FLECHAS
       else if (shape.tool === 'line' || shape.tool === 'arrow') {
         const cpX = shape.cpX !== undefined ? shape.cpX : (shape.startX + shape.endX) / 2
         const cpY = shape.cpY !== undefined ? shape.cpY : (shape.startY + shape.endY) / 2
 
-        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - shape.startY, 2)) < 14) return { shape, type: 'p-start' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 14) return { shape, type: 'p-end' }
-        if (isSelected && Math.sqrt(Math.pow(x - cpX, 2) + Math.pow(y - cpY, 2)) < 14) return { shape, type: 'p-curve' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - shape.startY, 2)) < 16) return { shape, type: 'p-start' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 16) return { shape, type: 'p-end' }
+        if (isSelected && Math.sqrt(Math.pow(x - cpX, 2) + Math.pow(y - cpY, 2)) < 16) return { shape, type: 'p-curve' }
         if (Math.sqrt(Math.pow(x - cpX, 2) + Math.pow(y - cpY, 2)) < 35) return { shape, type: 'move' }
       } 
-      
-      // 3. TEXTO
       else if (shape.tool === 'text') {
-        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 14) return { shape, type: 'resize-text' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 16) return { shape, type: 'resize-text' }
         if (x >= Math.min(shape.startX, shape.endX) && x <= Math.max(shape.startX, shape.endX) && 
             y >= Math.min(shape.startY, shape.endY) && y <= Math.max(shape.startY, shape.endY)) return { shape, type: 'move' }
       } 
-      
-      // 4. CÍRCULOS Y CILINDROS
       else {
         const radiusX = Math.abs(shape.endX - shape.startX)
         const radiusY = shape.radiusY || radiusX * 0.4
-        if (isSelected && Math.sqrt(Math.pow(x - (shape.startX + radiusX), 2) + Math.pow(y - shape.startY, 2)) < 14) return { shape, type: 'resize-x' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - (shape.startY + radiusY), 2)) < 14) return { shape, type: 'resize-y' }
+        if (isSelected && Math.sqrt(Math.pow(x - (shape.startX + radiusX), 2) + Math.pow(y - shape.startY, 2)) < 16) return { shape, type: 'resize-x' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - (shape.startY + radiusY), 2)) < 16) return { shape, type: 'resize-y' }
         const dx = (x - shape.startX) / radiusX
         const dy = (y - shape.startY) / radiusY
         if ((dx * dx + dy * dy) <= 1.2) return { shape, type: 'move' }
@@ -147,7 +155,6 @@ export default function CanvasOverlay({
     return null
   }
 
-  // MANEJADOR PASIVO PARA CURSORES
   const handlePassiveMouseMove = (e) => {
     if (activeTool !== 'select' || isDrawing || isMoving || isResizing) return
     const { x, y } = getCanvasCoords(e)
@@ -167,7 +174,6 @@ export default function CanvasOverlay({
     }
   }
 
-  // Escuchadores globales de arrastre en la ventana
   useEffect(() => {
     if (!isDrawing && !isMoving && !isResizing) return
 
@@ -196,7 +202,6 @@ export default function CanvasOverlay({
       else if (isMoving && selectedShapeId) {
         setShapes(prev => prev.map(s => {
           if (s.id !== selectedShapeId) return s
-
           if (s.tool === 'rectangle') {
             const dx = x - dragOffset.x - s.x1
             const dy = y - dragOffset.y - s.y1
@@ -246,20 +251,7 @@ export default function CanvasOverlay({
           const textInput = prompt('Escribe el texto de análisis táctico:')
           if (textInput) setShapes(prev => [...prev, { ...currentDrawing, text: textInput, id: `text-${Date.now()}` }])
         } else {
-          // NORMALIZACIÓN DE ESQUINAS: Asegura la coherencia espacial izquierda/derecha
-          let shapeToSave = { ...currentDrawing };
-          if (shapeToSave.tool === 'rectangle') {
-            const minX = Math.min(shapeToSave.x1, shapeToSave.x3);
-            const maxX = Math.max(shapeToSave.x1, shapeToSave.x3);
-            const minY = Math.min(shapeToSave.y1, shapeToSave.y3);
-            const maxY = Math.max(shapeToSave.y1, shapeToSave.y3);
-
-            shapeToSave.x1 = minX; shapeToSave.y1 = minY; // Top-Left real
-            shapeToSave.x2 = maxX; shapeToSave.y2 = minY; // Top-Right real
-            shapeToSave.x3 = maxX; shapeToSave.y3 = maxY; // Bottom-Right real
-            shapeToSave.x4 = minX; shapeToSave.y4 = maxY; // Bottom-Left real
-          }
-          setShapes(prev => [...prev, { ...shapeToSave, id: `shape-${Date.now()}` }])
+          setShapes(prev => [...prev, { ...currentDrawing, id: `shape-${Date.now()}` }])
         }
       }
       setIsDrawing(false); setIsMoving(false); setIsResizing(false); setCurrentDrawing(null)
@@ -271,7 +263,7 @@ export default function CanvasOverlay({
       window.removeEventListener('mousemove', handleGlobalMouseMove)
       window.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDrawing, isMoving, isResizing, startCoords, activeTool, selectedShapeId, dragOffset, currentDrawing, currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern, setShapes])
+  }, [isDrawing, isMoving, isResizing, startCoords, activeTool, selectedShapeId, dragOffset, currentDrawing, currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern, setShapes, videoWidth, videoHeight])
 
   const handleMouseDown = (e) => {
     const { x, y } = getCanvasCoords(e)
