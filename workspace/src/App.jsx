@@ -15,7 +15,8 @@ const tools = [
 export default function App() {
   const [activeTool, setActiveTool] = useState('select')
   const [shapes, setShapes] = useState([])
-  const [videoSize] = useState({ width: 1080, height: 720 })
+  // CORRECCIÓN: Ajustamos la resolución nativa interna a un ratio real de 16:9 HD
+  const [videoSize] = useState({ width: 1280, height: 720 })
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
@@ -146,7 +147,7 @@ export default function App() {
               }`}
               onClick={handleToggleRecord}
             >
-              {isRecording ? 'Stop & Export HD' : 'Export Video (1080x720)'}
+              {isRecording ? 'Stop & Export HD' : 'Export Video (16:9 HD)'}
             </button>
             <button type="button" className="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-sky-400 transition-colors" onClick={handleLoadVideo}>
               Load Match Video
@@ -234,7 +235,8 @@ export default function App() {
 
         <section className="flex flex-col gap-1 h-full w-full min-w-0">
           <div className="w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-xl flex items-center justify-center">
-            <div className="relative w-full aspect-[1080/720] max-h-[75vh] overflow-hidden rounded-xl bg-black border border-slate-900">
+            {/* CORRECCIÓN: Forzamos el contenedor visual a mantener un estricto ratio 16:9 panorámico estándar */}
+            <div className="relative w-full aspect-video max-h-[75vh] overflow-hidden rounded-xl bg-black border border-slate-900">
               <VideoPlayer ref={playerRef} width={videoSize.width} height={videoSize.height} onTimeUpdate={handleTimeUpdate} onDurationChange={setDuration} onPlayStateChange={setIsPlaying} />
               <CanvasOverlay
                 videoWidth={videoSize.width}
