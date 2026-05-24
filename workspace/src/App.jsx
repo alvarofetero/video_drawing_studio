@@ -174,8 +174,8 @@ export default function App() {
       </header>
 
       {/* <main className="flex-1 w-full mx-auto max-w-[1600px] grid gap-5 p-5 lg:grid-cols-[320px_1fr]"> */}
-      <main className="flex-1 w-full mx-auto max-w-[1600px] grid gap-5 p-5 lg:grid-cols-[250px_1fr_250px]">
-        <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl space-y-5 h-fit overflow-y-auto max-h-[85vh]">
+      <main className="flex-1 w-full mx-auto max-w-[1800px] grid gap-3 p-2 lg:grid-cols-[220px_1fr_220px]">
+        <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-3 shadow-xl space-y-5 h-fit overflow-y-auto max-h-[85vh]">
           
           {/* SECCIÓN A: HERRAMIENTAS */}
           <div className="space-y-2">
@@ -251,10 +251,10 @@ export default function App() {
           </div>
         </aside>
 
-        <section className="flex flex-col gap-1 h-full w-full min-w-0">
+        <section className="flex flex-col gap-2 h-full w-full min-w-0">
           <div className="w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-xl flex items-center justify-center">
             {/* CORRECCIÓN: Forzamos el contenedor visual a mantener un estricto ratio 16:9 panorámico estándar */}
-            <div className="relative w-full aspect-video max-h-[75vh] overflow-hidden rounded-xl bg-black border border-slate-900">
+            <div className="relative w-full aspect-video max-h-[75vh] overflow-hidden rounded-xl bg-black border border-slate-800">
               <VideoPlayer ref={playerRef} width={videoSize.width} height={videoSize.height} onTimeUpdate={handleTimeUpdate} onDurationChange={setDuration} onPlayStateChange={setIsPlaying} />
               <CanvasOverlay
                 videoWidth={videoSize.width}
@@ -295,7 +295,7 @@ export default function App() {
           </div>
         </section>
          {/* Derecha: Event Tagger (AHORA FUNCIONAL) */}
-        <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+        <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
            <EventTagger 
              events={events} 
              onAddEvent={addEvent} 

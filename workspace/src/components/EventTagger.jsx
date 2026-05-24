@@ -1,11 +1,12 @@
 import React from 'react';
+import eventTypes from '../config/events.json'; // Importa el JSON
 
-const eventTypes = [
-  { id: 'corner', label: 'Corner', color: 'bg-yellow-500' },
-  { id: 'shot', label: 'Tiro a puerta', color: 'bg-green-500' },
-  { id: 'foul', label: 'Falta', color: 'bg-red-500' },
-  { id: 'goal', label: 'Gol', color: 'bg-blue-500' }
-];
+// const eventTypes = [
+//   { id: 'corner', label: 'Corner', color: 'bg-yellow-500' },
+//   { id: 'shot', label: 'Tiro a puerta', color: 'bg-green-500' },
+//   { id: 'foul', label: 'Falta', color: 'bg-red-500' },
+//   { id: 'goal', label: 'Gol', color: 'bg-blue-500' }
+// ];
 
 export default function EventTagger({ events, onAddEvent, formatTime }) {
   const eventCounts = events.reduce((acc, e) => {
