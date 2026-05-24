@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import eventTypes from '../config/events.json'; // Importa el JSON
 
 // const eventTypes = [
@@ -8,6 +8,28 @@ import eventTypes from '../config/events.json'; // Importa el JSON
 //   { id: 'goal', label: 'Gol', color: 'bg-blue-500' }
 // ];
 
+// Sub-componente para la lista (hace el código mucho más legible)
+const EventHistory = ({ events, formatTime }) => {
+  // Optimizamos el sorteo para que no se ejecute en cada render innecesario
+  const sortedEvents = useMemo(() => 
+    [...events].sort((a, b) => b.timestamp - a.timestamp), 
+    [events]
+  );
+
+  return (
+    <ul className="flex-1 border-t border-slate-800 pt-4 mt-2 overflow-y-auto space-y-2">
+      {sortedEvents.map(ev => (
+        <li key={ev.id} className="text-[11px] flex justify-between bg-slate-900/50 p-2 rounded border border-slate-800">
+          <span className="font-semibold text-slate-300">{ev.type.toUpperCase()}</span>
+          <span className="font-mono text-sky-400">{formatTime(ev.timestamp)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+
+
 export default function EventTagger({ events, onAddEvent, formatTime }) {
   const eventCounts = events.reduce((acc, e) => {
     acc[e.type] = (acc[e.type] || 0) + 1;
@@ -15,10 +37,11 @@ export default function EventTagger({ events, onAddEvent, formatTime }) {
   }, {});
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event Tagger</div>
+    <section className="flex flex-col h-full gap-4">
+      <header className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event Tagger</header>
       
-      <div className="grid grid-cols-1 gap-2">
+      {/* Action section (buttons)*/}
+      <nav className="grid grid-cols-1 gap-2">
         {eventTypes.map(ev => (
           <button 
             key={ev.id}
@@ -34,16 +57,10 @@ export default function EventTagger({ events, onAddEvent, formatTime }) {
             </span>
           </button>
         ))}
-      </div>
+      </nav>
 
-      <div className="flex-1 border-t border-slate-800 pt-4 mt-2 overflow-y-auto space-y-2">
-        {events.sort((a,b) => b.timestamp - a.timestamp).map(ev => (
-          <div key={ev.id} className="text-[11px] flex justify-between bg-slate-900/50 p-2 rounded border border-slate-800">
-            <span className="font-semibold text-slate-300">{ev.type.toUpperCase()}</span>
-            <span className="font-mono text-sky-400">{formatTime(ev.timestamp)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+      {/* Sección de historial */}
+      <EventHistory events={events} formatTime={formatTime} />
+    </section>
   );
 }
