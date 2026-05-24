@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import VideoPlayer from './components/VideoPlayer'
 import CanvasOverlay from './components/CanvasOverlay'
+import EventTagger from './components/EventTagger'
 
 const tools = [
   { id: 'select', label: 'Select (Move, Curve & Adjust)' },
@@ -15,6 +16,7 @@ const tools = [
 export default function App() {
   const [activeTool, setActiveTool] = useState('select')
   const [shapes, setShapes] = useState([])
+  const [events, setEvents] = useState([])
   // CORRECCIÓN: Ajustamos la resolución nativa interna a un ratio real de 16:9 HD
   const [videoSize] = useState({ width: 1280, height: 720 })
   const [duration, setDuration] = useState(0)
@@ -131,6 +133,21 @@ export default function App() {
 
   const analysisTimestamps = Array.from(new Set(shapes.map(s => Math.floor(s.timestamp))))
 
+  // 2. LÓGICA DE EVENTOS
+  const addEvent = (type) => {
+    const newEvent = { type, timestamp: currentTime, id: Date.now() };
+    setEvents(prev => [...prev, newEvent]);
+  };
+
+  const jumpToTime = (time) => {
+    setCurrentTime(time);
+    const videoElement = document.querySelector('video');
+    if (videoElement) {
+      videoElement.currentTime = time;
+    }
+  };
+
+
   return (
     <div className="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100 antialiased">
       <header className="w-full border-b border-slate-800 bg-slate-950 px-6 py-4 shadow-md">
@@ -156,7 +173,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 w-full mx-auto max-w-[1600px] grid gap-5 p-5 lg:grid-cols-[320px_1fr]">
+      {/* <main className="flex-1 w-full mx-auto max-w-[1600px] grid gap-5 p-5 lg:grid-cols-[320px_1fr]"> */}
+      <main className="flex-1 w-full mx-auto max-w-[1600px] grid gap-5 p-5 lg:grid-cols-[250px_1fr_250px]">
         <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl space-y-5 h-fit overflow-y-auto max-h-[85vh]">
           
           {/* SECCIÓN A: HERRAMIENTAS */}
@@ -276,6 +294,15 @@ export default function App() {
             </div>
           </div>
         </section>
+         {/* Derecha: Event Tagger (AHORA FUNCIONAL) */}
+        <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+           <EventTagger 
+             events={events} 
+             onAddEvent={addEvent} 
+             onJumpToTime={jumpToTime} 
+             formatTime={formatTime} 
+           />
+        </aside>
       </main>
     </div>
   )
