@@ -5,6 +5,6 @@
   { "id": "corner_con", "label": "Corner (-)", "color": "bg-orange-500", "category": "con" },
   { "id": "foul_fav", "label": "Falta (+)", "color": "bg-blue-500", "category": "fav" },
   { "id": "foul_con", "label": "Falta (-)", "color": "bg-red-900", "category": "con" },
-  { "id": "goal_fav", "label": "Gol", "color": "bg-emerald-600", "category": "fav" },
-  { "id": "goal_con", "label": "Gol (-)", "color": "bg-red-600", "category": "con" }
+  { "id": "long_good", "label": "Largo (+)", "color": "bg-blue-600", "category": "fav" },
+  { "id": "long_bad", "label": "Largo (-)", "color": "bg-red-600", "category": "con" }
 ]

@@ -31,6 +31,9 @@ const EventHistory = ({ events, formatTime }) => {
 
 
 
+
+
+
 // export default function EventTagger({ events, onAddEvent, formatTime }) {
 export default function EventTagger({ events, onAddEvent, eventTypes, setEventTypes, formatTime, ...props }) {
   
@@ -39,9 +42,51 @@ export default function EventTagger({ events, onAddEvent, eventTypes, setEventTy
     return acc;
   }, {});
 
+
+  const exportEventReport = () => {
+      // Preparamos los datos con el formato que desees
+      const report = eventTypes.map(ev => ({
+        label: ev.label,
+        category: ev.category,
+        count: eventCounts[ev.id] || 0
+      }));
+
+      // Convertimos a JSON y creamos el blob
+      const dataStr = JSON.stringify(report, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      // Creamos un link temporal para la descarga
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte_eventos_${new Date().toLocaleDateString()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+
+  // Agrupación automática basada en la categoría
+  const grouped = useMemo(() => {
+    return eventTypes.reduce((acc, ev) => {
+      if (!acc[ev.category]) acc[ev.category] = [];
+      acc[ev.category].push(ev);
+      return acc;
+    }, {});
+  }, [eventTypes]);
+
   return (
     <section className="flex flex-col h-full gap-4">
-      <header className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event Tagger</header>
+
+      <header className="flex justify-between items-center">
+        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event Tagger</span>
+        <button 
+          onClick={exportEventReport}
+          className="text-[10px] bg-slate-800 text-sky-400 px-2 py-1 rounded hover:bg-slate-700"
+        >
+          Exportar Reporte
+        </button>
+      </header>
+
+      {/* <header className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event Tagger</header> */}
       
       {/* Action section (buttons)*/}
       <nav className="grid grid-cols-1 gap-2">
@@ -61,6 +106,7 @@ export default function EventTagger({ events, onAddEvent, eventTypes, setEventTy
           </button>
         ))}
       </nav>
+     
 
       {/* Sección de historial */}
       <EventHistory events={events} formatTime={formatTime} />
