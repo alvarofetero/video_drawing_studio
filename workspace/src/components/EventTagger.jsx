@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import eventTypes from '../config/events.json'; // Importa el JSON
+import EventSettings from './EventSettings'; // Tu componente de modal
 
 // const eventTypes = [
 //   { id: 'corner', label: 'Corner', color: 'bg-yellow-500' },
@@ -30,7 +31,9 @@ const EventHistory = ({ events, formatTime }) => {
 
 
 
-export default function EventTagger({ events, onAddEvent, formatTime }) {
+// export default function EventTagger({ events, onAddEvent, formatTime }) {
+export default function EventTagger({ events, onAddEvent, eventTypes, setEventTypes, formatTime, ...props }) {
+  
   const eventCounts = events.reduce((acc, e) => {
     acc[e.type] = (acc[e.type] || 0) + 1;
     return acc;

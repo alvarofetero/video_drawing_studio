@@ -1,9 +1,10 @@
 [
-  { "id": "shot_fav", "label": "Tiro a puerta (+)", "color": "bg-green-500" },
-  { "id": "shot_con", "label": "Tiro a puerta (-)", "color": "bg-red-500" },
-  { "id": "corner_fav", "label": "Corner (+)", "color": "bg-yellow-500" },
-  { "id": "corner_con", "label": "Corner (-)", "color": "bg-orange-500" },
-  { "id": "foul_fav", "label": "Falta (+)", "color": "bg-blue-500" },
-  { "id": "foul_con", "label": "Falta (-)", "color": "bg-red-900" },
-  { "id": "goal", "label": "Gol", "color": "bg-emerald-600" }
+  { "id": "shot_fav", "label": "Tiro a puerta (+)", "color": "bg-green-500", "category": "fav" },
+  { "id": "shot_con", "label": "Tiro a puerta (-)", "color": "bg-red-500", "category": "con"  },
+  { "id": "corner_fav", "label": "Corner (+)", "color": "bg-yellow-500", "category": "fav" },
+  { "id": "corner_con", "label": "Corner (-)", "color": "bg-orange-500", "category": "con" },
+  { "id": "foul_fav", "label": "Falta (+)", "color": "bg-blue-500", "category": "fav" },
+  { "id": "foul_con", "label": "Falta (-)", "color": "bg-red-900", "category": "con" },
+  { "id": "goal_fav", "label": "Gol", "color": "bg-emerald-600", "category": "fav" },
+  { "id": "goal_con", "label": "Gol (-)", "color": "bg-red-600", "category": "con" }
 ]

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import VideoPlayer from './components/VideoPlayer'
 import CanvasOverlay from './components/CanvasOverlay'
 import EventTagger from './components/EventTagger'
+import initialEventTypes from './config/events.json'
 
 const tools = [
   { id: 'select', label: 'Select (Move, Curve & Adjust)' },
@@ -17,6 +18,8 @@ export default function App() {
   const [activeTool, setActiveTool] = useState('select')
   const [shapes, setShapes] = useState([])
   const [events, setEvents] = useState([])
+  const [eventTypes, setEventTypes] = useState(initialEventTypes) // Estado centralizado
+
   // CORRECCIÓN: Ajustamos la resolución nativa interna a un ratio real de 16:9 HD
   const [videoSize] = useState({ width: 1280, height: 720 })
   const [duration, setDuration] = useState(0)
@@ -297,7 +300,9 @@ export default function App() {
          {/* Derecha: Event Tagger (AHORA FUNCIONAL) */}
         <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
            <EventTagger 
-             events={events} 
+             events={events}
+             eventTypes={eventTypes}
+             setEventTypes={setEventTypes}
              onAddEvent={addEvent} 
              onJumpToTime={jumpToTime} 
              formatTime={formatTime} 
