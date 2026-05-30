@@ -1,12 +1,7 @@
 [
-  { "id": "shot_fav", "label": "Tiro a puerta (+)", "color": "bg-green-500", "category": "fav" },
-  { "id": "shot_con", "label": "Tiro a puerta (-)", "color": "bg-red-500", "category": "con"  },
-  { "id": "corner_fav", "label": "Corner (+)", "color": "bg-yellow-500", "category": "fav" },
-  { "id": "corner_con", "label": "Corner (-)", "color": "bg-orange-500", "category": "con" },
-  { "id": "foul_fav", "label": "Falta (+)", "color": "bg-blue-500", "category": "fav" },
-  { "id": "foul_con", "label": "Falta (-)", "color": "bg-red-900", "category": "con" },
-  { "id": "long_fav", "label": "Directo (+)", "color": "bg-blue-600", "category": "fav" },
-  { "id": "long_con", "label": "Directo (-)", "color": "bg-red-600", "category": "con" },
-  { "id": "comb_fav", "label": "Combinativo (+)", "color": "bg-blue-600", "category": "fav" },
-  { "id": "comb_cont", "label": "Combinativo (-)", "color": "bg-red-600", "category": "con" }
+  { "id": "shot", "label": "Tiro a puerta", "color": "bg-green-500", "category": "fav" },
+  { "id": "corner", "label": "Corner", "color": "bg-yellow-500", "category": "fav" },
+  { "id": "foul", "label": "Falta", "color": "bg-red-500", "category": "fav" },
+  { "id": "long", "label": "Directo", "color": "bg-orange-600", "category": "fav" },
+  { "id": "comb", "label": "Combinativo", "color": "bg-blue-600", "category": "fav" }
 ]

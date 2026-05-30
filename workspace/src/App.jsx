@@ -18,23 +18,20 @@ export default function App() {
   const [activeTool, setActiveTool] = useState('select')
   const [shapes, setShapes] = useState([])
   const [events, setEvents] = useState([])
-  const [eventTypes, setEventTypes] = useState(initialEventTypes) // Estado centralizado
+  const [eventTypes, setEventTypes] = useState(initialEventTypes)
 
-  // CORRECCIÓN: Ajustamos la resolución nativa interna a un ratio real de 16:9 HD
   const [videoSize] = useState({ width: 1280, height: 720 })
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   
-  // ESTADOS DE ESTILO Y PERSONALIZACIÓN TRADICIONAL
   const [strokeColor, setStrokeColor] = useState('#f43f5e') 
   const [bgColor, setBgColor] = useState('#000000')         
   const [opacity, setOpacity] = useState(0.3)                
 
-  // NUEVOS ESTADOS DE ESTILO AVANZADO
-  const [lineStyle, setLineStyle] = useState('solid') // solid, dashed, dotted
-  const [fillPattern, setFillPattern] = useState('none') // none (solid color), grid, stripes
+  const [lineStyle, setLineStyle] = useState('solid') 
+  const [fillPattern, setFillPattern] = useState('none') 
 
   const isCurrentlyFrozenRef = useRef(false)
   const playerRef = useRef(null)
@@ -136,9 +133,12 @@ export default function App() {
 
   const analysisTimestamps = Array.from(new Set(shapes.map(s => Math.floor(s.timestamp))))
 
-  // 2. LÓGICA DE EVENTOS
-  const addEvent = (type) => {
-    const newEvent = { type, timestamp: currentTime, id: Date.now() };
+  // CORRECCIÓN AQUÍ: Ahora recibe el objeto estructurado directamente desde EventTagger
+  const addEvent = (eventData) => {
+    const newEvent = { 
+      ...eventData, 
+      timestamp: currentTime // Vinculamos de manera precisa el segundo exacto del video actual
+    };
     setEvents(prev => [...prev, newEvent]);
   };
 
@@ -149,7 +149,6 @@ export default function App() {
       videoElement.currentTime = time;
     }
   };
-
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-slate-900 text-slate-100 antialiased">
@@ -176,7 +175,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* <main className="flex-1 w-full mx-auto max-w-[1600px] grid gap-5 p-5 lg:grid-cols-[320px_1fr]"> */}
       <main className="flex-1 w-full mx-auto max-w-[1800px] grid gap-3 p-2 lg:grid-cols-[220px_1fr_220px]">
         <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-3 shadow-xl space-y-5 h-fit overflow-y-auto max-h-[85vh]">
           
@@ -256,7 +254,6 @@ export default function App() {
 
         <section className="flex flex-col gap-2 h-full w-full min-w-0">
           <div className="w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-xl flex items-center justify-center">
-            {/* CORRECCIÓN: Forzamos el contenedor visual a mantener un estricto ratio 16:9 panorámico estándar */}
             <div className="relative w-full aspect-video max-h-[75vh] overflow-hidden rounded-xl bg-black border border-slate-800">
               <VideoPlayer ref={playerRef} width={videoSize.width} height={videoSize.height} onTimeUpdate={handleTimeUpdate} onDurationChange={setDuration} onPlayStateChange={setIsPlaying} />
               <CanvasOverlay
@@ -297,7 +294,8 @@ export default function App() {
             </div>
           </div>
         </section>
-         {/* Derecha: Event Tagger (AHORA FUNCIONAL) */}
+
+        {/* Lateral Derecho: Event Tagger Completamente compatible */}
         <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
            <EventTagger 
              events={events}
