@@ -133,11 +133,11 @@ export default function App() {
 
   const analysisTimestamps = Array.from(new Set(shapes.map(s => Math.floor(s.timestamp))))
 
-  // CORRECCIÓN AQUÍ: Ahora recibe el objeto estructurado directamente desde EventTagger
+  // Gestión de Eventos Tácticos con Contexto Integrado
   const addEvent = (eventData) => {
     const newEvent = { 
       ...eventData, 
-      timestamp: currentTime // Vinculamos de manera precisa el segundo exacto del video actual
+      timestamp: currentTime 
     };
     setEvents(prev => [...prev, newEvent]);
   };
@@ -148,6 +148,61 @@ export default function App() {
     if (videoElement) {
       videoElement.currentTime = time;
     }
+  };
+
+  // EXPORTADOR AUTOMATIZADO DE CLIP DE VIDEO DE 10 SEGUNDOS
+  const exportVideoClip = async (eventItem) => {
+    const video = document.querySelector('video');
+    const canvas = document.querySelector('canvas');
+    if (!video || !canvas) return alert('No se encontró el reproductor de video o el lienzo de dibujo.');
+
+    const startTime = Math.max(0, eventItem.timestamp - 5);
+    const endTime = Math.min(duration, eventItem.timestamp + 5);
+    
+    const wasPlaying = isPlaying;
+    video.pause();
+    setIsPlaying(false);
+
+    const stream = canvas.captureStream(30); 
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+    const chunks = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `clip_${eventItem.type}_${eventItem.team}_${eventItem.zone}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      if (wasPlaying) {
+        video.play().catch(() => {});
+        setIsPlaying(true);
+      }
+    };
+
+    video.currentTime = startTime;
+    
+    await new Promise((resolve) => {
+      video.onseeked = resolve;
+    });
+
+    recorder.start();
+
+    const recordInterval = setInterval(() => {
+      if (video.currentTime >= endTime) {
+        clearInterval(recordInterval);
+        recorder.stop();
+      } else {
+        video.currentTime += 1 / 30; 
+        setCurrentTime(video.currentTime);
+      }
+    }, 1000 / 30);
   };
 
   return (
@@ -295,7 +350,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* Lateral Derecho: Event Tagger Completamente compatible */}
         <aside className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
            <EventTagger 
              events={events}
@@ -304,6 +358,7 @@ export default function App() {
              onAddEvent={addEvent} 
              onJumpToTime={jumpToTime} 
              formatTime={formatTime} 
+             onExportClip={exportVideoClip}
            />
         </aside>
       </main>

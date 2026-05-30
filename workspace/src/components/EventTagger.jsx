@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 // ==========================================
 // SUB-COMPONENTE: HISTORIAL DE EVENTOS
 // ==========================================
-const EventHistory = ({ events, formatTime }) => {
+const EventHistory = ({ events, formatTime, onExportClip }) => {
   const sortedEvents = useMemo(() => {
     if (!Array.isArray(events)) return [];
     return [...events].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -30,7 +30,7 @@ const EventHistory = ({ events, formatTime }) => {
         const timestamp = ev?.timestamp || Date.now();
 
         return (
-          <li key={ev?.id || index} className="text-[11px] flex justify-between bg-slate-900/50 p-2 rounded border border-slate-800">
+          <li key={ev?.id || index} className="text-[11px] flex justify-between bg-slate-900/50 p-2 rounded border border-slate-800 hover:bg-slate-900/40 transition-colors">
             <div className="flex flex-col">
               <span className="font-semibold text-slate-300">
                 {String(typeDisplay).toUpperCase()}
@@ -39,9 +39,22 @@ const EventHistory = ({ events, formatTime }) => {
                 {teamDisplay} • {zoneDisplay}
               </span>
             </div>
-            <span className="font-mono text-sky-400 self-center">
-              {formatTime ? formatTime(timestamp) : new Date(timestamp).toLocaleTimeString()}
-            </span>
+            
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-sky-400 text-[10px] bg-slate-950 px-1 py-0.5 rounded border border-slate-850">
+                {formatTime ? formatTime(timestamp) : ''}
+              </span>
+              
+              {/* BOTÓN INDIVIDUAL DE EXPORTACIÓN (10s CORTE) */}
+              <button
+                type="button"
+                onClick={() => onExportClip && onExportClip(ev)}
+                className="bg-sky-600/20 text-sky-400 border border-sky-500/30 px-1.5 py-0.5 rounded hover:bg-sky-600 hover:text-white transition-all text-[9px] font-bold"
+                title="Descargar corte de video (10 segundos)"
+              >
+                🎬 Corte
+              </button>
+            </div>
           </li>
         );
       })}
@@ -52,11 +65,11 @@ const EventHistory = ({ events, formatTime }) => {
 // ==========================================
 // COMPONENTE PRINCIPAL: EVENT TAGGER
 // ==========================================
-export default function EventTagger({ events = [], onAddEvent, eventTypes = [], formatTime }) {
+export default function EventTagger({ events = [], onAddEvent, eventTypes = [], formatTime, onExportClip }) {
   const [selectedTeam, setSelectedTeam] = useState('own'); 
   const [selectedZone, setSelectedZone] = useState('zone3'); 
   
-  // NUEVA LÓGICA: Contadores separados por evento y por equipo (own / rival)
+  // Cálculo de los contadores segmentados comparativos Own vs Rival
   const eventCounts = useMemo(() => {
     if (!Array.isArray(events)) return {};
     
@@ -64,7 +77,7 @@ export default function EventTagger({ events = [], onAddEvent, eventTypes = [], 
       if (!e) return acc;
       
       const typeKey = typeof e.type === 'string' ? e.type : (e.type?.id || e.id || '');
-      const teamKey = e.team === 'rival' ? 'rival' : 'own'; // Normaliza por si viene vacío
+      const teamKey = e.team === 'rival' ? 'rival' : 'own';
       
       if (typeKey) {
         if (!acc[typeKey]) {
@@ -76,7 +89,6 @@ export default function EventTagger({ events = [], onAddEvent, eventTypes = [], 
     }, {});
   }, [events]);
 
-  // Exportación del reporte incluyendo los contadores segmentados
   const exportEventReport = () => {
     const report = eventTypes.map(ev => ({
       label: ev.label,
@@ -138,10 +150,9 @@ export default function EventTagger({ events = [], onAddEvent, eventTypes = [], 
         </div>
       </section>
 
-      {/* Rejilla de botones con el contador comparativo */}
+      {/* Rejilla de botones de Eventos + Contadores Comparativos */}
       <nav className="grid grid-cols-1 gap-2">
         {eventTypes.map(ev => {
-          // Obtenemos los contadores específicos para este evento
           const ownCount = eventCounts[ev.id]?.own || 0;
           const rivalCount = eventCounts[ev.id]?.rival || 0;
 
@@ -153,8 +164,7 @@ export default function EventTagger({ events = [], onAddEvent, eventTypes = [], 
                 id: String(Date.now() + Math.random()),
                 type: ev.id,
                 team: selectedTeam,
-                zone: selectedZone,
-                timestamp: Date.now()
+                zone: selectedZone
               })}
               className="flex justify-between items-center bg-slate-900 p-3 rounded-lg hover:bg-slate-800 transition-all border border-slate-800"
             >
@@ -163,13 +173,13 @@ export default function EventTagger({ events = [], onAddEvent, eventTypes = [], 
                 <span className="text-sm font-medium text-slate-200">{ev.label}</span>
               </div>
               
-              {/* Contadores divididos en Own / Rival visualmente */}
+              {/* Bloque visual Own vs Rival */}
               <div className="flex items-center gap-1.5 font-mono text-xs">
-                <span className="bg-sky-950 px-2 py-0.5 rounded text-sky-400 border border-sky-900/50" title="Tu equipo">
+                <span className="bg-sky-950 px-2 py-0.5 rounded text-sky-400 border border-sky-900/50" title="Propio">
                   {ownCount}
                 </span>
                 <span className="text-slate-600 text-[10px]">vs</span>
-                <span className="bg-red-950/40 px-2 py-0.5 rounded text-red-400 border border-red-950" title="Rival">
+                <span className="bg-red-950/40 px-2 py-0.5 rounded text-red-400 border border-red-950/60" title="Rival">
                   {rivalCount}
                 </span>
               </div>
@@ -178,8 +188,8 @@ export default function EventTagger({ events = [], onAddEvent, eventTypes = [], 
         })}
       </nav>
 
-      {/* Renderizado de la lista del historial */}
-      <EventHistory events={events} formatTime={formatTime} />
+      {/* Historial pasándole la función del clip */}
+      <EventHistory events={events} formatTime={formatTime} onExportClip={onExportClip} />
     </section>
   );
 }
