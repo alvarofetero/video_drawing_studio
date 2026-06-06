@@ -1,0 +1,9 @@
+{
+  "enableDrawing": true,
+  "enableTagger": true,
+  "enableStatsPanel": false,
+  "enableLiveStream": false,
+  "sidebarDrawing": true,
+  "tagger": true,
+  "analytics": false
+}
