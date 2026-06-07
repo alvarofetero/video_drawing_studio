@@ -15,7 +15,7 @@ export default function CanvasOverlay({
   const [currentDrawing, setCurrentDrawing] = useState(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  // Ciclo unificado de renderizado de Canvas
+  // Ciclo unificado de renderizado
   useEffect(() => {
     let animationFrameId
     const canvas = canvasRef.current
@@ -54,7 +54,21 @@ export default function CanvasOverlay({
         } else if (shape.tool === 'text') {
           renderer.drawTextBox(ctx, shape, isSelected)
         } else if (shape.tool === 'rectangle') {
-          renderer.drawRectangle(ctx, shape, isSelected)
+          // RENDERIZADO EN PERSPECTIVA REAL
+          ctx.moveTo(shape.x1, shape.y1)
+          ctx.lineTo(shape.x2, shape.y2)
+          ctx.lineTo(shape.x3, shape.y3)
+          ctx.lineTo(shape.x4, shape.y4)
+          ctx.closePath()
+          ctx.fill()
+          ctx.stroke()
+
+          if (isSelected) {
+            renderer.drawResizeHandles(ctx, shape.x1, shape.y1) // Top-Left (r-p1)
+            renderer.drawResizeHandles(ctx, shape.x2, shape.y2) // Top-Right (r-p2)
+            renderer.drawResizeHandles(ctx, shape.x3, shape.y3) // Bottom-Right (r-p3)
+            renderer.drawResizeHandles(ctx, shape.x4, shape.y4) // Bottom-Left (r-p4)
+          }
         } else if (shape.tool === 'circle') {
           renderer.drawOval(ctx, shape, isSelected)
         } else if (shape.tool === 'cylinder') {
@@ -70,17 +84,32 @@ export default function CanvasOverlay({
     return () => cancelAnimationFrame(animationFrameId)
   }, [videoWidth, videoHeight, shapes, currentDrawing, currentTime, selectedShapeId, activeTool])
 
+  // CÁLCULO MATEMÁTICO PRECISO COMPATIBLE CON OBJECT-FIT: CONTAIN
   const getCanvasCoords = (e) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
+    
     const rect = canvas.getBoundingClientRect()
+    
+    // Calculamos la escala real manteniendo el aspect ratio
+    const scaleX = rect.width / videoWidth
+    const scaleY = rect.height / videoHeight
+    const scale = Math.min(scaleX, scaleY) 
+    
+    // Obtenemos el tamaño real del canvas visualizado en pantalla
+    const renderedWidth = videoWidth * scale
+    const renderedHeight = videoHeight * scale
+    
+    // Calculamos el espacio negro (letterbox) a los lados o arriba/abajo
+    const offsetX = (rect.width - renderedWidth) / 2
+    const offsetY = (rect.height - renderedHeight) / 2
+    
     return {
-      x: ((e.clientX - rect.left) / rect.width) * videoWidth,
-      y: ((e.clientY - rect.top) / rect.height) * videoHeight
+      x: ((e.clientX - rect.left - offsetX) / renderedWidth) * videoWidth,
+      y: ((e.clientY - rect.top - offsetY) / renderedHeight) * videoHeight
     }
   }
 
-  // DETECTOR DE COLISIONES PRECISO (CORREGIDO DE CORRUPCIONES)
   const findShapeAtCoords = (x, y) => {
     const activeShapes = shapes.filter(s => Math.abs(s.timestamp - currentTime) < 0.15)
     
@@ -88,42 +117,36 @@ export default function CanvasOverlay({
       const shape = activeShapes[i]
       const isSelected = shape.id === selectedShapeId
 
-      // 1. COLISIONES EN LÍNEAS Y FLECHAS
-      if (shape.tool === 'line' || shape.tool === 'arrow') {
+      if (shape.tool === 'rectangle') {
+        // Tolerancia aumentada a 16px para mayor comodidad en pantallas de alta densidad
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x1, 2) + Math.pow(y - shape.y1, 2)) < 16) return { shape, type: 'r-p1' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x2, 2) + Math.pow(y - shape.y2, 2)) < 16) return { shape, type: 'r-p2' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x3, 2) + Math.pow(y - shape.y3, 2)) < 16) return { shape, type: 'r-p3' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.x4, 2) + Math.pow(y - shape.y4, 2)) < 16) return { shape, type: 'r-p4' }
+        
+        const centerX = (shape.x1 + shape.x2 + shape.x3 + shape.x4) / 4
+        const centerY = (shape.y1 + shape.y2 + shape.y3 + shape.y4) / 4
+        if (Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)) < 40) return { shape, type: 'move' }
+      } 
+      else if (shape.tool === 'line' || shape.tool === 'arrow') {
         const cpX = shape.cpX !== undefined ? shape.cpX : (shape.startX + shape.endX) / 2
         const cpY = shape.cpY !== undefined ? shape.cpY : (shape.startY + shape.endY) / 2
 
-        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - shape.startY, 2)) < 14) return { shape, type: 'p-start' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 14) return { shape, type: 'p-end' }
-        if (isSelected && Math.sqrt(Math.pow(x - cpX, 2) + Math.pow(y - cpY, 2)) < 14) return { shape, type: 'p-curve' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - shape.startY, 2)) < 16) return { shape, type: 'p-start' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 16) return { shape, type: 'p-end' }
+        if (isSelected && Math.sqrt(Math.pow(x - cpX, 2) + Math.pow(y - cpY, 2)) < 16) return { shape, type: 'p-curve' }
         if (Math.sqrt(Math.pow(x - cpX, 2) + Math.pow(y - cpY, 2)) < 35) return { shape, type: 'move' }
       } 
-      
-      // 2. COLISIONES EN RECTÁNGULOS (Sincronizado con nombres cardinales r-tl, r-tr, etc.)
-      else if (shape.tool === 'rectangle') {
-        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - shape.startY, 2)) < 14) return { shape, type: 'r-tl' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.startY, 2)) < 14) return { shape, type: 'r-tr' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 14) return { shape, type: 'r-br' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - shape.endY, 2)) < 14) return { shape, type: 'r-bl' }
-        
-        const centerX = (shape.startX + shape.endX) / 2
-        const centerY = (shape.startY + shape.endY) / 2
-        if (Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)) < 40) return { shape, type: 'move' }
-      } 
-      
-      // 3. COLISIONES EN TEXTO
       else if (shape.tool === 'text') {
-        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 14) return { shape, type: 'resize-text' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.endX, 2) + Math.pow(y - shape.endY, 2)) < 16) return { shape, type: 'resize-text' }
         if (x >= Math.min(shape.startX, shape.endX) && x <= Math.max(shape.startX, shape.endX) && 
             y >= Math.min(shape.startY, shape.endY) && y <= Math.max(shape.startY, shape.endY)) return { shape, type: 'move' }
       } 
-      
-      // 4. COLISIONES EN CÍRCULOS Y CILINDROS
       else {
         const radiusX = Math.abs(shape.endX - shape.startX)
         const radiusY = shape.radiusY || radiusX * 0.4
-        if (isSelected && Math.sqrt(Math.pow(x - (shape.startX + radiusX), 2) + Math.pow(y - shape.startY, 2)) < 14) return { shape, type: 'resize-x' }
-        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - (shape.startY + radiusY), 2)) < 14) return { shape, type: 'resize-y' }
+        if (isSelected && Math.sqrt(Math.pow(x - (shape.startX + radiusX), 2) + Math.pow(y - shape.startY, 2)) < 16) return { shape, type: 'resize-x' }
+        if (isSelected && Math.sqrt(Math.pow(x - shape.startX, 2) + Math.pow(y - (shape.startY + radiusY), 2)) < 16) return { shape, type: 'resize-y' }
         const dx = (x - shape.startX) / radiusX
         const dy = (y - shape.startY) / radiusY
         if ((dx * dx + dy * dy) <= 1.2) return { shape, type: 'move' }
@@ -132,7 +155,6 @@ export default function CanvasOverlay({
     return null
   }
 
-  // MANEJADOR PASIVO PARA CAMBIAR LOS CURSORES DINÁMICAMENTE AL PASAR EL RATÓN
   const handlePassiveMouseMove = (e) => {
     if (activeTool !== 'select' || isDrawing || isMoving || isResizing) return
     const { x, y } = getCanvasCoords(e)
@@ -141,10 +163,9 @@ export default function CanvasOverlay({
     if (!canvas) return
 
     if (hit) {
-      // Cursores específicos según la esquina o tensor apuntado
-      if (hit.type === 'r-tl' || hit.type === 'r-br') canvas.style.cursor = 'nwse-resize'
-      else if (hit.type === 'r-tr' || hit.type === 'r-bl') canvas.style.cursor = 'nesw-resize'
-      else if (hit.type === 'p-start' || hit.type === 'p-end' || hit.type === 'p-curve' || hit.type === 'resize-text') canvas.style.cursor = 'pointer'
+      if (hit.type === 'r-p1' || hit.type === 'r-p3') canvas.style.cursor = 'nwse-resize'
+      else if (hit.type === 'r-p2' || hit.type === 'r-p4') canvas.style.cursor = 'nesw-resize'
+      else if (['p-start', 'p-end', 'p-curve', 'resize-text'].includes(hit.type)) canvas.style.cursor = 'pointer'
       else if (hit.type === 'resize-x') canvas.style.cursor = 'ew-resize'
       else if (hit.type === 'resize-y') canvas.style.cursor = 'ns-resize'
       else if (hit.type === 'move') canvas.style.cursor = 'move'
@@ -153,7 +174,6 @@ export default function CanvasOverlay({
     }
   }
 
-  // Escuchadores globales de arrastre en la ventana (Window)
   useEffect(() => {
     if (!isDrawing && !isMoving && !isResizing) return
 
@@ -161,19 +181,38 @@ export default function CanvasOverlay({
       const { x, y } = getCanvasCoords(e)
 
       if (isDrawing && startCoords) {
-        setCurrentDrawing({
-          tool: activeTool, startX: startCoords.x, startY: startCoords.y, endX: x, endY: y,
-          timestamp: currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern,
-          ...(activeTool === 'line' || activeTool === 'arrow' ? { cpX: (startCoords.x + x) / 2, cpY: (startCoords.y + y) / 2 } : {}),
-          ...(activeTool === 'circle' || activeTool === 'cylinder' ? { radiusY: Math.abs(x - startCoords.x) * 0.4 } : {})
-        })
+        if (activeTool === 'rectangle') {
+          setCurrentDrawing({
+            tool: 'rectangle',
+            x1: startCoords.x, y1: startCoords.y,
+            x2: x, y2: startCoords.y,
+            x3: x, y3: y,
+            x4: startCoords.x, y4: y,
+            timestamp: currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern
+          })
+        } else {
+          setCurrentDrawing({
+            tool: activeTool, startX: startCoords.x, startY: startCoords.y, endX: x, endY: y,
+            timestamp: currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern,
+            ...(activeTool === 'line' || activeTool === 'arrow' ? { cpX: (startCoords.x + x) / 2, cpY: (startCoords.y + y) / 2 } : {}),
+            ...(activeTool === 'circle' || activeTool === 'cylinder' ? { radiusY: Math.abs(x - startCoords.x) * 0.4 } : {})
+          })
+        }
       } 
       else if (isMoving && selectedShapeId) {
         setShapes(prev => prev.map(s => {
           if (s.id !== selectedShapeId) return s
-          const width = s.endX - s.startX, height = s.endY - s.startY
-          const nX = x - dragOffset.x, nY = y - dragOffset.y
-
+          if (s.tool === 'rectangle') {
+            const dx = x - dragOffset.x - s.x1
+            const dy = y - dragOffset.y - s.y1
+            return {
+              ...s,
+              x1: s.x1 + dx, y1: s.y1 + dy,
+              x2: s.x2 + dx, y2: s.y2 + dy,
+              x3: s.x3 + dx, y3: s.y3 + dy,
+              x4: s.x4 + dx, y4: s.y4 + dy
+            }
+          }
           if (s.tool === 'line' || s.tool === 'arrow') {
             const dx = x - dragOffset.x - s.startX, dy = y - dragOffset.y - s.startY
             return {
@@ -182,6 +221,8 @@ export default function CanvasOverlay({
               cpY: (s.cpY !== undefined ? s.cpY : (s.startY + s.endY)/2) + dy
             }
           }
+          const width = s.endX - s.startX, height = s.endY - s.startY
+          const nX = x - dragOffset.x, nY = y - dragOffset.y
           return { ...s, startX: nX, startY: nY, endX: nX + width, endY: nY + height }
         }))
       } 
@@ -189,11 +230,10 @@ export default function CanvasOverlay({
         setShapes(prev => prev.map(s => {
           if (s.id !== selectedShapeId) return s
           
-          // GESTIÓN DE REDIMENSIÓN TOTAL DE RECTÁNGULOS EN LAS 4 ESQUINAS
-          if (isResizing === 'r-tl') return { ...s, startX: x, startY: y }
-          if (isResizing === 'r-tr') return { ...s, endX: x, startY: y }
-          if (isResizing === 'r-br') return { ...s, endX: x, endY: y }
-          if (isResizing === 'r-bl') return { ...s, startX: x, endY: y }
+          if (isResizing === 'r-p1') return { ...s, x1: x, y1: y }
+          if (isResizing === 'r-p2') return { ...s, x2: x, y2: y }
+          if (isResizing === 'r-p3') return { ...s, x3: x, y3: y }
+          if (isResizing === 'r-p4') return { ...s, x4: x, y4: y }
           
           if (isResizing === 'p-start') return { ...s, startX: x, startY: y }
           if (isResizing === 'p-end') return { ...s, endX: x, endY: y }
@@ -223,7 +263,7 @@ export default function CanvasOverlay({
       window.removeEventListener('mousemove', handleGlobalMouseMove)
       window.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDrawing, isMoving, isResizing, startCoords, activeTool, selectedShapeId, dragOffset, currentDrawing, currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern, setShapes])
+  }, [isDrawing, isMoving, isResizing, startCoords, activeTool, selectedShapeId, dragOffset, currentDrawing, currentTime, strokeColor, bgColor, opacity, lineStyle, fillPattern, setShapes, videoWidth, videoHeight])
 
   const handleMouseDown = (e) => {
     const { x, y } = getCanvasCoords(e)
@@ -242,7 +282,10 @@ export default function CanvasOverlay({
       setSelectedShapeId(hit.shape.id)
       if (hit.type === 'move') {
         setIsMoving(true)
-        setDragOffset({ x: x - hit.shape.startX, y: y - hit.shape.startY })
+        setDragOffset({ 
+          x: x - (hit.shape.tool === 'rectangle' ? hit.shape.x1 : hit.shape.startX), 
+          y: y - (hit.shape.tool === 'rectangle' ? hit.shape.y1 : hit.shape.startY) 
+        })
       } else {
         setIsResizing(hit.type)
       }
