@@ -11,3 +11,9 @@ npm test
 Notes:
 - Project uses Vite + React and Vitest for TDD.
 - Run `npm test` to execute tests once; use `npm run test:watch` for TDD loop.
+
+
+Deployment:
+
+npm run build
+npm run deploy
