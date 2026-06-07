@@ -6,15 +6,30 @@ import StylePanel from './components/StylePanel'
 import initialEventTypes from './config/events.json'
 import features from './config/features.json'
 
+const ICONS = {
+  select: <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />,
+  arrow: <path d="M5 12h14M12 5l7 7-7 7" />,
+  line: <path d="M5 19L19 5" />,
+  text: <path d="M4 7V4h16v3M9 20h6M12 4v16" />,
+  rectangle: <path d="M4 4h16v16H4z" />,
+  circle: <circle cx="12" cy="12" r="9" />,
+ cylinder: (
+  <g>
+    <ellipse cx="12" cy="6" rx="9" ry="3" />
+    <path d="M3 6v12c0 1.66 4 3 9 3s9-1.34 9-3V6" />
+  </g>
+)
+};
+
 const tools = [
-  { id: 'select', label: 'Select (Move, Curve & Adjust)' },
-  { id: 'arrow', label: 'Arrow (Curved)' },
-  { id: 'line', label: 'Line' },
-  { id: 'text', label: 'Text Box' },
-  { id: 'rectangle', label: 'Area (Rectangle)' },
-  { id: 'circle', label: 'Oval / Circle' },
-  { id: 'cylinder', label: 'Cylinder' }
-]
+  { id: 'select', label: 'Select', iconKey: 'select' },
+  { id: 'arrow', label: 'Arrow', iconKey: 'arrow' },
+  { id: 'line', label: 'Line', iconKey: 'line' },
+  { id: 'text', label: 'Text', iconKey: 'text' },
+  { id: 'rectangle', label: 'Area', iconKey: 'rectangle' },
+  { id: 'circle', label: 'Circle', iconKey: 'circle' },
+  { id: 'cylinder', label: 'Cylinder', iconKey: 'cylinder' }
+];
 
 export default function App() {
   // --- ESTADOS PRINCIPALES ---
@@ -70,10 +85,18 @@ export default function App() {
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-2">Analysis Toolset</div>
           <div className="grid gap-1.5">
             {tools.map((tool) => (
-              <button key={tool.id} onClick={() => setActiveTool(tool.id)} 
-                className={`rounded-xl px-4 py-2 text-left text-xs font-semibold transition-all ${activeTool === tool.id ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'}`}>
-                {tool.label}
-              </button>
+              <button 
+    key={tool.id} 
+    onClick={() => setActiveTool(tool.id)}
+    className={`flex items-center gap-3 w-full px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+      activeTool === tool.id ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-400 hover:bg-slate-800'
+    }`}
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {ICONS[tool.iconKey]}
+    </svg>
+    {tool.label}
+  </button>
             ))}
           </div>
         </div>
