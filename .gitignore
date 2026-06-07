@@ -5,3 +5,5 @@ workspace/node_modules/@adobe/css-tools/dist/*
 workspace/node_modules/@alloc/*
 workspace/node_modules/@babel/*
 workspace/node_modules/*
+workspace/dist/*
+workspace/node_modules/*
