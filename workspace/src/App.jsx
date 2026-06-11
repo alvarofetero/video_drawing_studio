@@ -12,6 +12,8 @@ const tools = [
   { id: 'cylinder', label: 'Tactical Cylinder' }
 ]
 
+const milliseconds_to_wait = 8000
+
 export default function App() {
   const [activeTool, setActiveTool] = useState('select')
   const [shapes, setShapes] = useState([])
@@ -52,7 +54,7 @@ export default function App() {
             videoElement.play().catch(() => {})
             setIsPlaying(true)
           }
-        }, 7000)
+        }, milliseconds_to_wait)
       }
     }
   }
